@@ -1,6 +1,8 @@
 #include <unistd.h>
 #include <string.h>
 
+
+
 #define WELCOME_MESSAGE "Welcome to ENSEA Tiny Shell.\nType 'exit' to quit.\n"
 #define PROMPT "enseash % "
 #define READ_BUFFER_SIZE 128
@@ -8,9 +10,7 @@
 int main(void) {
     char input_buffer[READ_BUFFER_SIZE];
     ssize_t read_size;
-
     write(STDOUT_FILENO, WELCOME_MESSAGE, strlen(WELCOME_MESSAGE));
-
     while (1) {
         /* Display prompt */
         write(STDOUT_FILENO, PROMPT, strlen(PROMPT));
@@ -29,12 +29,10 @@ int main(void) {
         if (read_size > 0 && input_buffer[read_size - 1] == '\n') {
             input_buffer[read_size - 1] = '\0';
         }
-
         /* Exit command */
         if (strncmp(input_buffer, "exit", 4) == 0) {
             break;
         }
     }
-
     return 0;
 }
