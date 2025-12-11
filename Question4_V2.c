@@ -33,15 +33,13 @@ int main(void) {
             prompt_buffer[MAX_PROMPT_SIZE - 1] = '\0';
             first_prompt = 0;
         } else if (last_signal != 0) {
-            /* Signal-based termination */
             int length = snprintf(prompt_buffer, MAX_PROMPT_SIZE, 
                                   "%s%d%s", 
                                   PROMPT_SIGN_PREFIX, 
                                   last_signal, 
                                   PROMPT_SUFFIX);
-            (void)length; /* suppress unused variable warning */
+            (void)length; 
         } else {
-            /* Normal exit */
             int length = snprintf(prompt_buffer, MAX_PROMPT_SIZE, 
                                   "%s%d%s", 
                                   PROMPT_EXIT_PREFIX, 
@@ -55,13 +53,11 @@ int main(void) {
         read_size = read(STDIN_FILENO, input_buffer, READ_BUFFER_SIZE - 1);
 
         if (read_size == 0) {
-            /* CTRL+D */
             write(STDOUT_FILENO, GOODBYE_MESSAGE, strlen(GOODBYE_MESSAGE));
             break;
         }
 
         if (read_size < 0) {
-            /* Read error */
             write(STDOUT_FILENO, GOODBYE_MESSAGE, strlen(GOODBYE_MESSAGE));
             break;
         }
@@ -78,31 +74,22 @@ int main(void) {
         }
 
         child_pid = fork();
-// AQUI ESTÁ A SEÇÃO QUE PRECISA DE MUDANÇA (dentro de child_pid == 0)
 
         if (child_pid == 0) {
-            char *argv[READ_BUFFER_SIZE / 2 + 2]; // Array de ponteiros para argumentos
+            char *argv[READ_BUFFER_SIZE / 2 + 2];
             char *token;
             int i = 0;
 
-            // 1. O token recebe o primeiro argumento (o comando)
             token = strtok(input_buffer, " ");
             while (token != NULL) {
-                // 2. Armazena o ponteiro para o token no array argv
                 argv[i] = token;
                 i++;
-                // 3. Obtém o próximo argumento (ou NULL se não houver mais)
                 token = strtok(NULL, " ");
             }
 
-            // 4. O array de argumentos deve ser encerrado com NULL
             argv[i] = NULL;
             
-            // 5. O primeiro elemento de argv é o comando
-            //    execvp(nome_do_arquivo, array_de_argumentos)
             execvp(argv[0], argv);
-            
-            // Se execvp falhar (comando não encontrado), termina com 1
             write(STDERR_FILENO, "Command not found.\n", 19); 
             _exit(1);
         }
