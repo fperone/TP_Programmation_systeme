@@ -40,7 +40,7 @@ int main(void) {
 
         input_buffer[read_size] = '\0';
 
-        /* Remove newline */
+        /* Remove newline \n and replace to \0 in c */
         if (read_size > 0 && input_buffer[read_size - 1] == '\n') {
             input_buffer[read_size - 1] = '\0';
         }
@@ -51,14 +51,14 @@ int main(void) {
             break;
         }
 
-        /* Fork and execute command */
+        /* Fork and the child execute the command given by the user */
         child_pid = fork();
 
         if (child_pid == 0) {
             char *command = input_buffer;
             char *argv[] = { command, NULL };
             execvp(command, argv);
-            _exit(1);  /* exec failed */
+            _exit(1); 
         } else if (child_pid > 0) {
             wait(&child_status);
         } else {
