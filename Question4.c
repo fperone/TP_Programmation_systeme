@@ -33,15 +33,13 @@ int main(void) {
             prompt_buffer[MAX_PROMPT_SIZE - 1] = '\0';
             first_prompt = 0;
         } else if (last_signal != 0) {
-            /* Signal-based termination */
             int length = snprintf(prompt_buffer, MAX_PROMPT_SIZE, 
                                   "%s%d%s", 
                                   PROMPT_SIGN_PREFIX, 
                                   last_signal, 
                                   PROMPT_SUFFIX);
-            (void)length; /* suppress unused variable warning */
+            (void)length; 
         } else {
-            /* Normal exit */
             int length = snprintf(prompt_buffer, MAX_PROMPT_SIZE, 
                                   "%s%d%s", 
                                   PROMPT_EXIT_PREFIX, 
@@ -55,13 +53,11 @@ int main(void) {
         read_size = read(STDIN_FILENO, input_buffer, READ_BUFFER_SIZE - 1);
 
         if (read_size == 0) {
-            /* CTRL+D */
             write(STDOUT_FILENO, GOODBYE_MESSAGE, strlen(GOODBYE_MESSAGE));
             break;
         }
 
         if (read_size < 0) {
-            /* Read error */
             write(STDOUT_FILENO, GOODBYE_MESSAGE, strlen(GOODBYE_MESSAGE));
             break;
         }
@@ -79,12 +75,24 @@ int main(void) {
 
         child_pid = fork();
 
-        if (child_pid == 0) {
-            char *command = input_buffer;
-            char *argv[] = { command, NULL };
-            execvp(command, argv);
-            _exit(1); /* If execvp fails */
-        }
+        if (child_pid == 0) {
+            char *argv[READ_BUFFER_SIZE / 2 + 2];
+            char *token;
+            int i = 0;
+
+            token = strtok(input_buffer, " ");
+            while (token != NULL) {
+                argv[i] = token;
+                i++;
+                token = strtok(NULL, " ");
+            }
+
+            argv[i] = NULL;
+            
+            execvp(argv[0], argv);
+            write(STDERR_FILENO, "Command not found.\n", 19); 
+            _exit(1);
+        }
         wait(&child_status);
         if (WIFEXITED(child_status)) {
             last_exit_code = WEXITSTATUS(child_status);
@@ -96,3 +104,4 @@ int main(void) {
     }
     return 0;
 }
+
