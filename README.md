@@ -1,1 +1,1 @@
-read me vinicius
+Students: Felipe Perone, Vinicius Baião!
