@@ -75,25 +75,47 @@ int main(void) {
         }
 
         child_pid = fork();
+        if (child_pid == 0) {
+            char *argv[READ_BUFFER_SIZE / 2 + 2];
+            int arg_count = 0;
+            int index = 0;
+            int length = strnlen(input_buffer, READ_BUFFER_SIZE);
+        
+            while (index < length) {
+        
+                /* Skip spaces */
+                while (index < length && input_buffer[index] == ' ') {
+                    index++;
+                }
+        
+                if (index >= length) {
+                    break;
+                }
+        
+                /* Argument starts here */
+                argv[arg_count] = &input_buffer[index];
+                arg_count++;
+        
+                /* Move forward until next space or end */
+                while (index < length && input_buffer[index] != ' ') {
+                    index++;
+                }
+        
+                /* Null-terminate argument */
+                if (index < length) {
+                    input_buffer[index] = '\0';
+                    index++;
+                }
+            }
+        
+            argv[arg_count] = NULL;
+        
+            execvp(argv[0], argv);
+        
+            write(STDERR_FILENO, "Command not found.\n", 19);
+            _exit(1);
+        }
 
-        if (child_pid == 0) {
-            char *argv[READ_BUFFER_SIZE / 2 + 2];
-            char *token;
-            int i = 0;
-
-            token = strtok(input_buffer, " ");
-            while (token != NULL) {
-                argv[i] = token;
-                i++;
-                token = strtok(NULL, " ");
-            }
-
-            argv[i] = NULL;
-            
-            execvp(argv[0], argv);
-            write(STDERR_FILENO, "Command not found.\n", 19); 
-            _exit(1);
-        }
         wait(&child_status);
         if (WIFEXITED(child_status)) {
             last_exit_code = WEXITSTATUS(child_status);
