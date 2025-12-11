@@ -1,7 +1,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/wait.h>
-
+#include <stdio.h>
 
 
 #define WELCOME_MESSAGE "Welcome to ENSEA Tiny Shell.\nType 'exit' to quit.\n"
