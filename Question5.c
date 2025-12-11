@@ -3,6 +3,7 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <stdio.h>
 #include <time.h>
 
 #define MAX_CMD_SIZE 128
