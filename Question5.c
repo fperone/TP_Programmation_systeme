@@ -6,12 +6,6 @@
 #include <stdio.h>
 #include <time.h>
 
-#define MAX_CMD_SIZE 128
-#define MAX_PROMPT_SIZE 128
-#define WELCOME_MESSAGE "Welcome to ENSEA Tiny Shell.\nType 'exit' to quit.\n"
-#define PROMPT_SIMPLE "enseash % "
-#define EXIT_MESSAGE "Bye bye...\n"
-
 #define READ_BUFFER_SIZE 256
 #define MAX_PROMPT_SIZE 128
 #define MAX_ARGS (READ_BUFFER_SIZE / 2)
@@ -31,7 +25,7 @@
 #define CMDNOTFOUND_MSG_LENGTH 19
 
 int main(void) {
-    char input_buffer[MAX_CMD_SIZE];
+    char input_buffer[READ_BUFFER_SIZE];
     char prompt_buffer[MAX_PROMPT_SIZE];
 
     ssize_t read_size;
@@ -47,7 +41,6 @@ int main(void) {
     struct timespec time_end;
 
     write(STDOUT_FILENO, WELCOME_MESSAGE, strlen(WELCOME_MESSAGE)); // Welcome message
-    write(STDOUT_FILENO, PROMPT_SIMPLE, strlen(PROMPT_SIMPLE));
 
     while (1) {
         if (first_prompt) { // First condition made to display the prefix of the first prompt
@@ -61,11 +54,11 @@ int main(void) {
         }
 
         write(STDOUT_FILENO, prompt_buffer, strlen(prompt_buffer)); // display the prompt using write system call
-        read_size = read(STDIN_FILENO, input_buffer, MAX_CMD_SIZE);
+        read_size = read(STDIN_FILENO, input_buffer, READ_BUFFER_SIZE - 1); // read user input from stdin
 
-        if (read_size == 0) {
-            write(STDOUT_FILENO, EXIT_MESSAGE, strlen(EXIT_MESSAGE));
-            return 0;
+        if (read_size <= 0) { // handle end-of-file or read error
+            write(STDOUT_FILENO, GOODBYE_MESSAGE, strlen(GOODBYE_MESSAGE));
+            break;
         }
         if (input_buffer[read_size - 1] == '\n') { // handle newline character at the end of input in case user pressed Enter
             input_buffer[read_size - 1] = '\0';
