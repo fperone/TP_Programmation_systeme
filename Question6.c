@@ -1,8 +1,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/wait.h>
-#include <stdio.h>
 #include <time.h>
+#include <stdio.h>
 
 #define READ_BUFFER_SIZE 256
 #define MAX_PROMPT_SIZE 128
@@ -35,6 +35,7 @@ int main(void) {
     struct timespec time_start;
     struct timespec time_end;
 
+    /* Welcome message */
     write(STDOUT_FILENO, WELCOME_MESSAGE, strlen(WELCOME_MESSAGE));
 
     while (1) {
@@ -81,7 +82,7 @@ int main(void) {
             input_buffer[read_size - 1] = '\0';
         }
 
-        /* ----- Exit command ----- */
+        /* Exit command */
         if (strncmp(input_buffer, EXIT_CMD, EXIT_CMD_LENGTH) == 0) {
             write(STDOUT_FILENO, GOODBYE_MESSAGE, strlen(GOODBYE_MESSAGE));
             break;
@@ -92,33 +93,15 @@ int main(void) {
         child_pid = fork();
 
         if (child_pid == 0) {
-            /* ----- CHILD: parse arguments ----- */
+            /* ----- CHILD: parse arguments using strtok ----- */
             char *argv[MAX_ARGS];
             int argc = 0;
-            int index = 0;
-            int length = strnlen(input_buffer, READ_BUFFER_SIZE);
 
-            while (index < length) {
-
-                while (index < length && input_buffer[index] == ' ') {
-                    index++;
-                }
-
-                if (index >= length) {
-                    break;
-                }
-
-                argv[argc] = &input_buffer[index];
+            char *token = strtok(input_buffer, " ");
+            while (token != NULL && argc < MAX_ARGS - 1) {
+                argv[argc] = token;
                 argc++;
-
-                while (index < length && input_buffer[index] != ' ') {
-                    index++;
-                }
-
-                if (index < length) {
-                    input_buffer[index] = '\0';
-                    index++;
-                }
+                token = strtok(NULL, " ");
             }
 
             argv[argc] = NULL;
@@ -129,7 +112,7 @@ int main(void) {
             _exit(1);
         }
 
-        /* ----- PARENT ----- */
+        /* ----- Parent ----- */
         wait(&child_status);
         clock_gettime(CLOCK_MONOTONIC, &time_end);
 
