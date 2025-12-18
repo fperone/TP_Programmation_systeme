@@ -19,8 +19,8 @@ int main(void) {
             break;
         }
         input_buffer[read_size] = '\0'; 
-        if (read_size > 0 && input_buffer[read_size - 1] == '\n') {
-            input_buffer[read_size - 1] = '\0'; // Remove newline character
+        if (read_size > 0 && input_buffer[read_size - 1] == '\n') { // handle newline character at the end of input
+            input_buffer[read_size - 1] = '\0';
         }
         if (strncmp(input_buffer, "exit", 4) == 0) {
             break; // Exit command
