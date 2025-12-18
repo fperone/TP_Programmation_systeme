@@ -44,7 +44,7 @@ Implementation details:
 - WIFSIGNALED and WTERMSIG for signal termination
 - Prompt dynamically rebuilt using snprintf
 
-# Question5.c
+# Quetion5.c
 
 The shell was then extended to measure the execution time of each command.
 Example: 
@@ -63,22 +63,31 @@ For example:
 enseash % hostname -i
 enseash % fortune -s osfortune
 Important implementation choices:
-- No use of strtok()
-- Manual parsing of the command line
-- Arguments split by spaces
-- Use of strnlen() and direct buffer manipulation
+- Use of strtok() to tokenize the command line
+- Arguments are separated using spaces as delimiters
+- Construction of the argv[] array dynamically from parsed tokens
+- Proper NULL termination of argv[] before calling execvp()
+- Full compatibility with previously implemented features (fork, exec, timing, prompt)
+
+This implementation allows the shell to execute any external command with an arbitrary number of arguments.
 
 # Question7.c
 
-Finally, the shell supports basic I/O redirections:
+Finally, the shell was extended to support basic input and output redirections.
 Examples: 
 enseash % ls > filelist.txt
 enseash % wc -l < filelist.txt
 Implementation details:
-- Detection of < and > during parsing
-- Use of open() to open files
+- Parsing of the command line using strtok()
+- Detection of redirection operators < and > during token parsing
+- Identification of the input and output filenames following the redirection symbols
+- Removal of redirection tokens from the argv[] array
+- Use of open() to open files:
+- O_RDONLY for input redirection
+- O_WRONLY | O_CREAT | O_TRUNC for output redirection
 - Use of dup2() to redirect:
-- STDIN_FILENO
-- STDOUT_FILENO
-- Removal of redirection tokens from argv
-Only simple redirections are supported (no pipes).
+- STDIN_FILENO for <
+- STDOUT_FILENO for >
+- Redirections are applied only in the child process, before calling execvp()
+  
+Only simple redirections are supported; pipes and advanced redirection combinations are intentionally not handled.
