@@ -26,19 +26,19 @@ int main(void) {
     int last_signal = 0;
     int first_prompt = 1;
   
-    write(STDOUT_FILENO, WELCOME_MESSAGE, strlen(WELCOME_MESSAGE));
+    write(STDOUT_FILENO, WELCOME_MESSAGE, strlen(WELCOME_MESSAGE)); // Display welcome message
     while (1) {
         if (first_prompt) {
 
-            strncpy(prompt_buffer, PROMPT_DEFAULT, MAX_PROMPT_SIZE - 1);
-            prompt_buffer[MAX_PROMPT_SIZE - 1] = '\0';
+            strncpy(prompt_buffer, PROMPT_DEFAULT, MAX_PROMPT_SIZE - 1); // Set default prompt
+            prompt_buffer[MAX_PROMPT_SIZE - 1] = '\0'; // Ensure null-termination
             first_prompt = 0;
-        } else if (last_signal != 0) {
+        } else if (last_signal != 0) { // If last command ended with a signal
             int length = snprintf(prompt_buffer, MAX_PROMPT_SIZE, 
                                   "%s%d%s", 
                                   PROMPT_SIGN_PREFIX, 
                                   last_signal, 
-                                  PROMPT_SUFFIX);
+                                  PROMPT_SUFFIX); 
             (void)length; 
         } else {
             int length = snprintf(prompt_buffer, MAX_PROMPT_SIZE, 
@@ -46,14 +46,14 @@ int main(void) {
                                   PROMPT_EXIT_PREFIX, 
                                   last_exit_code, 
                                   PROMPT_SUFFIX);
-            (void)length;
+            (void)length; 
         }
 
-        write(STDOUT_FILENO, prompt_buffer, strlen(prompt_buffer));
+        write(STDOUT_FILENO, prompt_buffer, strlen(prompt_buffer)); 
 
-        read_size = read(STDIN_FILENO, input_buffer, READ_BUFFER_SIZE - 1);
+        read_size = read(STDIN_FILENO, input_buffer, READ_BUFFER_SIZE - 1); 
 
-        if (read_size == 0) {
+        if (read_size == 0) { 
             write(STDOUT_FILENO, GOODBYE_MESSAGE, strlen(GOODBYE_MESSAGE));
             break;
         }
@@ -63,7 +63,7 @@ int main(void) {
             break;
         }
 
-        input_buffer[read_size] = '\0';
+        input_buffer[read_size] = '\0'; // Null-terminate the input string
 
         if (input_buffer[read_size - 1] == '\n') {
             input_buffer[read_size - 1] = '\0';
@@ -71,11 +71,11 @@ int main(void) {
 
         if (strncmp(input_buffer, EXIT_CMD, EXIT_CMD_LENGTH) == 0) {
             write(STDOUT_FILENO, GOODBYE_MESSAGE, strlen(GOODBYE_MESSAGE));
-            break;
+            break; // Exit the shell
         }
 
-        child_pid = fork();
-        if (child_pid == 0) {
+        child_pid = fork(); 
+        if (child_pid == 0) { 
             char *argv[READ_BUFFER_SIZE / 2 + 2];
             int arg_count = 0;
             int index = 0;
@@ -83,32 +83,28 @@ int main(void) {
         
             while (index < length) {
         
-                /* Skip spaces */
-                while (index < length && input_buffer[index] == ' ') {
+                while (index < length && input_buffer[index] == ' ') { // Skip spaces
                     index++;
                 }
         
                 if (index >= length) {
                     break;
                 }
-        
-                /* Argument starts here */
-                argv[arg_count] = &input_buffer[index];
+
+                argv[arg_count] = &input_buffer[index]; // Set argument pointer
                 arg_count++;
         
-                /* Move forward until next space or end */
-                while (index < length && input_buffer[index] != ' ') {
+                while (index < length && input_buffer[index] != ' ') { // Move to next space
                     index++;
                 }
         
-                /* Null-terminate argument */
-                if (index < length) {
+                if (index < length) { // Null-terminate the argument
                     input_buffer[index] = '\0';
                     index++;
                 }
             }
         
-            argv[arg_count] = NULL;
+            argv[arg_count] = NULL; // Null-terminate the argument list
         
             execvp(argv[0], argv);
         
@@ -116,15 +112,14 @@ int main(void) {
             _exit(1);
         }
 
-        wait(&child_status);
+        wait(&child_status); // Wait for child process to finish
         if (WIFEXITED(child_status)) {
             last_exit_code = WEXITSTATUS(child_status);
             last_signal = 0;
-        } else if (WIFSIGNALED(child_status)) {
-            last_signal = WTERMSIG(child_status);
+        } else if (WIFSIGNALED(child_status)) { 
+            last_signal = WTERMSIG(child_status); // if terminated by a signal get terminating signal
             last_exit_code = 0;
         }
     }
     return 0;
 }
-
