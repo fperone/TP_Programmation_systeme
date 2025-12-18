@@ -17,52 +17,44 @@ int main(void) {
     pid_t child_pid;
     int child_status;
 
-    /* Display welcome message */
-    write(STDOUT_FILENO, WELCOME_MESSAGE, strlen(WELCOME_MESSAGE));
+    write(STDOUT_FILENO, WELCOME_MESSAGE, strlen(WELCOME_MESSAGE)); // Display welcome message
 
     while (1) {
-        /* Display prompt */
-        write(STDOUT_FILENO, PROMPT, strlen(PROMPT));
+        write(STDOUT_FILENO, PROMPT, strlen(PROMPT)); // Display prompt
 
         read_size = read(STDIN_FILENO, input_buffer, READ_BUFFER_SIZE - 1);
 
         if (read_size == 0) {
-            /* CTRL+D detected */
-            write(STDOUT_FILENO, GOODBYE_MESSAGE, strlen(GOODBYE_MESSAGE));
+            write(STDOUT_FILENO, GOODBYE_MESSAGE, strlen(GOODBYE_MESSAGE)); // Handle end of File (ctrl+d)
             break;
         }
 
-        if (read_size < 0) {
-            /* Read error */
+        if (read_size < 0) { // Handle end of file or read error
             write(STDOUT_FILENO, GOODBYE_MESSAGE, strlen(GOODBYE_MESSAGE));
             break;
         }
 
         input_buffer[read_size] = '\0';
 
-        /* Remove newline \n and replace to \0 in c */
-        if (read_size > 0 && input_buffer[read_size - 1] == '\n') {
+        if (read_size > 0 && input_buffer[read_size - 1] == '\n') { // handle newline character at the end of input
             input_buffer[read_size - 1] = '\0';
         }
 
-        /* "exit" command */
-        if (strncmp(input_buffer, EXIT_CMD, EXIT_CMD_LENGTH) == 0) {
+        if (strncmp(input_buffer, EXIT_CMD, EXIT_CMD_LENGTH) == 0) { // Check for exit command
             write(STDOUT_FILENO, GOODBYE_MESSAGE, strlen(GOODBYE_MESSAGE));
             break;
         }
 
-        /* Fork and the child execute the command given by the user */
-        child_pid = fork();
-
-        if (child_pid == 0) {
+        child_pid = fork(); // Create a child process
+        if (child_pid == 0) { // Child: execute the command
             char *command = input_buffer;
             char *argv[] = { command, NULL };
             execvp(command, argv);
             _exit(1); 
-        } else if (child_pid > 0) {
+        } else if (child_pid > 0) { // Parent: wait for the child process to finish
             wait(&child_status);
         } else {
-            const char *error_msg = "Error: fork failed.\n";
+            const char *error_msg = "Error: fork failed.\n"; // Handle fork error
             write(STDERR_FILENO, error_msg, strlen(error_msg));
         }
     }
