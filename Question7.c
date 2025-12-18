@@ -2,8 +2,8 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <time.h>
-#include <fcntl.h>
 #include <stdio.h>
+#include <fcntl.h>
 
 #define READ_BUFFER_SIZE 256
 #define MAX_PROMPT_SIZE 128
@@ -63,7 +63,7 @@ int main(void) {
 
         write(STDOUT_FILENO, prompt_buffer, strlen(prompt_buffer));
 
-        /* -------- Read -------- */
+        /* -------- Read input -------- */
         read_size = read(STDIN_FILENO, input_buffer, READ_BUFFER_SIZE - 1);
 
         if (read_size <= 0) {
@@ -77,11 +77,13 @@ int main(void) {
             input_buffer[read_size - 1] = '\0';
         }
 
+        /* Exit command */
         if (strncmp(input_buffer, EXIT_CMD, EXIT_CMD_LENGTH) == 0) {
             write(STDOUT_FILENO, GOODBYE_MESSAGE, strlen(GOODBYE_MESSAGE));
             break;
         }
 
+        /* -------- Fork -------- */
         clock_gettime(CLOCK_MONOTONIC, &time_start);
         child_pid = fork();
 
@@ -89,84 +91,56 @@ int main(void) {
             /* -------- CHILD -------- */
             char *argv[MAX_ARGS];
             int argc = 0;
-            int index = 0;
-            int length = strnlen(input_buffer, READ_BUFFER_SIZE);
+            char *input_file = NULL;
+            char *output_file = NULL;
 
-            int input_fd = -1;
-            int output_fd = -1;
+            char *token = strtok(input_buffer, " ");
+            while (token != NULL) {
 
-            while (index < length) {
-
-                while (index < length && input_buffer[index] == ' ') {
-                    index++;
+                if (strcmp(token, "<") == 0) {
+                    token = strtok(NULL, " ");
+                    input_file = token;
+                } else if (strcmp(token, ">") == 0) {
+                    token = strtok(NULL, " ");
+                    output_file = token;
+                } else {
+                    argv[argc] = token;
+                    argc++;
                 }
 
-                if (index >= length) {
-                    break;
-                }
-
-                /* Input redirection */
-                if (input_buffer[index] == '<') {
-                    index++;
-                    while (input_buffer[index] == ' ') index++;
-
-                    char *filename = &input_buffer[index];
-                    while (index < length && input_buffer[index] != ' ') index++;
-                    input_buffer[index] = '\0';
-
-                    input_fd = open(filename, O_RDONLY);
-                    if (input_fd < 0) {
-                        write(STDERR_FILENO, "Input file error\n", 17);
-                        _exit(1);
-                    }
-                    continue;
-                }
-
-                /* Output redirection */
-                if (input_buffer[index] == '>') {
-                    index++;
-                    while (input_buffer[index] == ' ') index++;
-
-                    char *filename = &input_buffer[index];
-                    while (index < length && input_buffer[index] != ' ') index++;
-                    input_buffer[index] = '\0';
-
-                    output_fd = open(filename,
-                                     O_WRONLY | O_CREAT | O_TRUNC,
-                                     0644);
-                    if (output_fd < 0) {
-                        write(STDERR_FILENO, "Output file error\n", 18);
-                        _exit(1);
-                    }
-                    continue;
-                }
-
-                argv[argc] = &input_buffer[index];
-                argc++;
-
-                while (index < length && input_buffer[index] != ' ') {
-                    index++;
-                }
-
-                if (index < length) {
-                    input_buffer[index] = '\0';
-                    index++;
-                }
+                token = strtok(NULL, " ");
             }
 
             argv[argc] = NULL;
 
-            if (input_fd != -1) {
-                dup2(input_fd, STDIN_FILENO);
-                close(input_fd);
+            /* Input redirection */
+            if (input_file != NULL) {
+                int fd_in = open(input_file, O_RDONLY);
+                if (fd_in >= 0) {
+                    dup2(fd_in, STDIN_FILENO);
+                    close(fd_in);
+                } else {
+                    write(STDERR_FILENO, "Input file error\n", 17);
+                    _exit(1);
+                }
             }
 
-            if (output_fd != -1) {
-                dup2(output_fd, STDOUT_FILENO);
-                close(output_fd);
+            /* Output redirection */
+            if (output_file != NULL) {
+                int fd_out = open(output_file,
+                                  O_WRONLY | O_CREAT | O_TRUNC,
+                                  0644);
+                if (fd_out >= 0) {
+                    dup2(fd_out, STDOUT_FILENO);
+                    close(fd_out);
+                } else {
+                    write(STDERR_FILENO, "Output file error\n", 18);
+                    _exit(1);
+                }
             }
 
             execvp(argv[0], argv);
+
             write(STDERR_FILENO, "Command not found.\n", 19);
             _exit(1);
         }
@@ -190,3 +164,4 @@ int main(void) {
 
     return 0;
 }
+
