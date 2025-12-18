@@ -19,6 +19,9 @@
 #define EXIT_CMD "exit"
 #define EXIT_CMD_LENGTH 4
 
+#define CMDNOTFOUND_MSG "Command not found.\n"
+#define CMDNOTFOUND_MSG_LENGTH 19
+
 int main(void) {
     char input_buffer[READ_BUFFER_SIZE];
     char prompt_buffer[MAX_PROMPT_SIZE];
@@ -35,69 +38,43 @@ int main(void) {
     struct timespec time_start;
     struct timespec time_end;
 
-    /* Welcome message */
-    write(STDOUT_FILENO, WELCOME_MESSAGE, strlen(WELCOME_MESSAGE));
+    write(STDOUT_FILENO, WELCOME_MESSAGE, strlen(WELCOME_MESSAGE)); // Welcome message
 
     while (1) {
-
-        /* ----- Prompt ----- */
-        if (first_prompt) {
-            strncpy(prompt_buffer, PROMPT_DEFAULT, MAX_PROMPT_SIZE - 1);
-            prompt_buffer[MAX_PROMPT_SIZE - 1] = '\0';
+        if (first_prompt) { // First condition made to display the prefix of the first prompt
+            strncpy(prompt_buffer, PROMPT_DEFAULT, MAX_PROMPT_SIZE - 1); // copy of the content in PROMPT_DEFAULT to prompt_buffer up until MAX_PROMPT_SIZE bytes
+            prompt_buffer[MAX_PROMPT_SIZE - 1] = '\0'; // ensure null-termination
             first_prompt = 0;
-        } else if (last_signal != 0) {
-            snprintf(prompt_buffer, MAX_PROMPT_SIZE,
-                     "%s%d|%ldms%s",
-                     PROMPT_SIGN_PREFIX,
-                     last_signal,
-                     last_time_ms,
-                     PROMPT_SUFFIX);
-        } else {
-            snprintf(prompt_buffer, MAX_PROMPT_SIZE,
-                     "%s%d|%ldms%s",
-                     PROMPT_EXIT_PREFIX,
-                     last_exit_code,
-                     last_time_ms,
-                     PROMPT_SUFFIX);
+        } else if (last_signal != 0) { // Second condition made to display the prefix of the prompt when the last command was terminated by a signal
+            snprintf(prompt_buffer, MAX_PROMPT_SIZE, "%s%d|%ldms%s", PROMPT_SIGN_PREFIX, last_signal, last_time_ms, PROMPT_SUFFIX);
+        } else { // Third condition made to display the prefix of the prompt when the last command exited normally
+            snprintf(prompt_buffer, MAX_PROMPT_SIZE, "%s%d|%ldms%s", PROMPT_EXIT_PREFIX, last_exit_code, last_time_ms, PROMPT_SUFFIX);
         }
 
-        write(STDOUT_FILENO, prompt_buffer, strlen(prompt_buffer));
+        write(STDOUT_FILENO, prompt_buffer, strlen(prompt_buffer)); // display the prompt using write system call
+        read_size = read(STDIN_FILENO, input_buffer, READ_BUFFER_SIZE - 1); // read user input from stdin
 
-        /* ----- Read input ----- */
-        read_size = read(STDIN_FILENO, input_buffer, READ_BUFFER_SIZE - 1);
-
-        if (read_size == 0) {
+        if (read_size <= 0) { // handle end-of-file or read error
             write(STDOUT_FILENO, GOODBYE_MESSAGE, strlen(GOODBYE_MESSAGE));
             break;
         }
-
-        if (read_size < 0) {
-            write(STDOUT_FILENO, GOODBYE_MESSAGE, strlen(GOODBYE_MESSAGE));
-            break;
-        }
-
         input_buffer[read_size] = '\0';
 
-        if (input_buffer[read_size - 1] == '\n') {
+        if (input_buffer[read_size - 1] == '\n') { // handle newline character at the end of input in case user pressed Enter
             input_buffer[read_size - 1] = '\0';
         }
-
-        /* Exit command */
-        if (strncmp(input_buffer, EXIT_CMD, EXIT_CMD_LENGTH) == 0) {
+        if (strncmp(input_buffer, EXIT_CMD, EXIT_CMD_LENGTH) == 0) { // check for exit command by comparing input with the "exit" string
             write(STDOUT_FILENO, GOODBYE_MESSAGE, strlen(GOODBYE_MESSAGE));
             break;
         }
-
-        /* ----- Fork ----- */
-        clock_gettime(CLOCK_MONOTONIC, &time_start);
-        child_pid = fork();
+        clock_gettime(CLOCK_MONOTONIC, &time_start); // start timing the command execution
+        child_pid = fork(); // create a new child process to execute the command
 
         if (child_pid == 0) {
-            /* ----- CHILD: parse arguments using strtok ----- */
-            char *argv[MAX_ARGS];
+            char *argv[MAX_ARGS]; // array to hold command arguments
             int argc = 0;
 
-            char *token = strtok(input_buffer, " ");
+            char *token = strtok(input_buffer, " "); // tokenize the input string based on spaces using strtok, which modifies the input string into tokens
             while (token != NULL && argc < MAX_ARGS - 1) {
                 argv[argc] = token;
                 argc++;
@@ -105,25 +82,19 @@ int main(void) {
             }
 
             argv[argc] = NULL;
-
-            execvp(argv[0], argv);
-
-            write(STDERR_FILENO, "Command not found.\n", 19);
+            execvp(argv[0], argv); // execute the command in the child process using execvp
+            write(STDERR_FILENO, CMDNOTFOUND_MSG, CMDNOTFOUND_MSG_LENGTH); // handle command not found error
             _exit(1);
         }
-
-        /* ----- Parent ----- */
         wait(&child_status);
-        clock_gettime(CLOCK_MONOTONIC, &time_end);
+        clock_gettime(CLOCK_MONOTONIC, &time_end); // end timing the command execution
 
-        last_time_ms =
-            (time_end.tv_sec - time_start.tv_sec) * 1000 +
-            (time_end.tv_nsec - time_start.tv_nsec) / 1000000;
+        last_time_ms = (time_end.tv_sec - time_start.tv_sec) * 1000 + (time_end.tv_nsec - time_start.tv_nsec) / 1000000;
 
-        if (WIFEXITED(child_status)) {
+        if (WIFEXITED(child_status)) { // check if the child process exited normally
             last_exit_code = WEXITSTATUS(child_status);
             last_signal = 0;
-        } else if (WIFSIGNALED(child_status)) {
+        } else if (WIFSIGNALED(child_status)) { // check if the child process was terminated by a signal
             last_signal = WTERMSIG(child_status);
             last_exit_code = 0;
         }

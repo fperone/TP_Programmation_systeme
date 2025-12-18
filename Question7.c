@@ -45,7 +45,7 @@ int main(void) {
     struct timespec time_start;
     struct timespec time_end;
 
-    write(STDOUT_FILENO, WELCOME_MESSAGE, strlen(WELCOME_MESSAGE));
+    write(STDOUT_FILENO, WELCOME_MESSAGE, strlen(WELCOME_MESSAGE)); // Welcome message
 
     while (1) {
         if (first_prompt) { // First condition made to display the prefix of the first prompt

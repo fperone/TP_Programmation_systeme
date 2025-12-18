@@ -12,67 +12,90 @@
 #define PROMPT_SIMPLE "enseash % "
 #define EXIT_MESSAGE "Bye bye...\n"
 
+#define READ_BUFFER_SIZE 256
+#define MAX_PROMPT_SIZE 128
+#define MAX_ARGS (READ_BUFFER_SIZE / 2)
+
+#define WELCOME_MESSAGE "Welcome to ENSEA Tiny Shell.\nType 'exit' to quit.\n"
+#define GOODBYE_MESSAGE "Bye bye...\n"
+
+#define PROMPT_DEFAULT "enseash % "
+#define PROMPT_EXIT_PREFIX "enseash [exit:"
+#define PROMPT_SIGN_PREFIX "enseash [sign:"
+#define PROMPT_SUFFIX "] % "
+
+#define EXIT_CMD "exit"
+#define EXIT_CMD_LENGTH 4
+
+#define CMDNOTFOUND_MSG "Command not found.\n"
+#define CMDNOTFOUND_MSG_LENGTH 19
+
 int main(void) {
-    char cmd_buffer[MAX_CMD_SIZE];
+    char input_buffer[MAX_CMD_SIZE];
     char prompt_buffer[MAX_PROMPT_SIZE];
 
-    ssize_t read_bytes;
-    int status = 0;
-    struct timespec start_time;
-    struct timespec end_time;
+    ssize_t read_size;
+    pid_t child_pid;
+    int child_status = 0;
 
-    write(STDOUT_FILENO, WELCOME_MESSAGE, strlen(WELCOME_MESSAGE));
+    int last_exit_code = 0;
+    int last_signal = 0;
+    long last_time_ms = 0;
+    int first_prompt = 1;
+
+    struct timespec time_start;
+    struct timespec time_end;
+
+    write(STDOUT_FILENO, WELCOME_MESSAGE, strlen(WELCOME_MESSAGE)); // Welcome message
     write(STDOUT_FILENO, PROMPT_SIMPLE, strlen(PROMPT_SIMPLE));
+
     while (1) {
-        read_bytes = read(STDIN_FILENO, cmd_buffer, MAX_CMD_SIZE);
+        if (first_prompt) { // First condition made to display the prefix of the first prompt
+            strncpy(prompt_buffer, PROMPT_DEFAULT, MAX_PROMPT_SIZE - 1); // copy of the content in PROMPT_DEFAULT to prompt_buffer up until MAX_PROMPT_SIZE bytes
+            prompt_buffer[MAX_PROMPT_SIZE - 1] = '\0'; // ensure null-termination
+            first_prompt = 0;
+        } else if (last_signal != 0) { // Second condition made to display the prefix of the prompt when the last command was terminated by a signal
+            snprintf(prompt_buffer, MAX_PROMPT_SIZE, "%s%d|%ldms%s", PROMPT_SIGN_PREFIX, last_signal, last_time_ms, PROMPT_SUFFIX);
+        } else { // Third condition made to display the prefix of the prompt when the last command exited normally
+            snprintf(prompt_buffer, MAX_PROMPT_SIZE, "%s%d|%ldms%s", PROMPT_EXIT_PREFIX, last_exit_code, last_time_ms, PROMPT_SUFFIX);
+        }
 
-        /* Ctrl+D (EOF) */
-        if (read_bytes == 0) {
+        write(STDOUT_FILENO, prompt_buffer, strlen(prompt_buffer)); // display the prompt using write system call
+        read_size = read(STDIN_FILENO, input_buffer, MAX_CMD_SIZE);
+
+        if (read_size == 0) {
             write(STDOUT_FILENO, EXIT_MESSAGE, strlen(EXIT_MESSAGE));
             return 0;
         }
-        
-        if (cmd_buffer[read_bytes - 1] == '\n') {
-            cmd_buffer[read_bytes - 1] = '\0';
+        if (input_buffer[read_size - 1] == '\n') { // handle newline character at the end of input in case user pressed Enter
+            input_buffer[read_size - 1] = '\0';
         }
-
-        if (strncmp(cmd_buffer, "exit", 4) == 0) {
-            write(STDOUT_FILENO, EXIT_MESSAGE, strlen(EXIT_MESSAGE));
-            return 0;
+        if (strncmp(input_buffer, EXIT_CMD, EXIT_CMD_LENGTH) == 0) { // check for exit command by comparing input with the "exit" string
+            write(STDOUT_FILENO, GOODBYE_MESSAGE, strlen(GOODBYE_MESSAGE));
+            break;
         }
+        clock_gettime(CLOCK_MONOTONIC, &time_start); // start timing the command execution
+        child_pid = fork(); // create a new child process to execute the command
 
-        clock_gettime(CLOCK_MONOTONIC, &start_time);
+        if (child_pid == 0) {
+            char *args[] = { input_buffer, NULL };
+            execvp(input_buffer, args);
 
-        pid_t pid = fork();
-
-        if (pid == 0) {
-
-            char *args[] = { cmd_buffer, NULL };
-            execvp(cmd_buffer, args);
             const char *errmsg = "Command not found\n";
             write(STDERR_FILENO, errmsg, strlen(errmsg));
             exit(127);
         }
+        wait(&child_status);
+        clock_gettime(CLOCK_MONOTONIC, &time_end);
 
-        wait(&status);
-        clock_gettime(CLOCK_MONOTONIC, &end_time);
+        last_time_ms = (time_end.tv_sec - time_start.tv_sec) * 1000 + (time_end.tv_nsec - time_start.tv_nsec) / 1000000;
 
-        long elapsed_ms =
-            (end_time.tv_sec - start_time.tv_sec) * 1000 +
-            (end_time.tv_nsec - start_time.tv_nsec) / 1000000;
-
-        if (WIFEXITED(status)) {
-            int code = WEXITSTATUS(status);
-            int len = snprintf(prompt_buffer, MAX_PROMPT_SIZE,
-                               "enseash [exit:%d|%ldms] %% ", code, elapsed_ms);
-            write(STDOUT_FILENO, prompt_buffer, len);
-        } else if (WIFSIGNALED(status)) {
-            int sig = WTERMSIG(status);
-            int len = snprintf(prompt_buffer, MAX_PROMPT_SIZE,
-                               "enseash [sign:%d|%ldms] %% ", sig, elapsed_ms);
-            write(STDOUT_FILENO, prompt_buffer, len);
-        } else {
-            write(STDOUT_FILENO, PROMPT_SIMPLE, strlen(PROMPT_SIMPLE));
+        if (WIFEXITED(child_status)) { // check if the child process exited normally
+            last_exit_code = WEXITSTATUS(child_status);
+            last_signal = 0;
+        } else if (WIFSIGNALED(child_status)) { // check if the child process was terminated by a signal
+            last_signal = WTERMSIG(child_status);
+            last_exit_code = 0;
         }
     }
     return 0;
