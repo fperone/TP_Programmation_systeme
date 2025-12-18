@@ -1,6 +1,6 @@
 # Students: Felipe Perone and Vinicius Baião Pires.
 # Overview
-This project consists in the implementation of a Unix shell, developed in C using low-level system calls. The shell basically allows the user to execute commands, display execution information and other functionalities. The implementation was done step by step, adding one feature at a time, creating a new file for everysingle feature added, meaning that the Question7.c file contains the code with all the features.
+This project consists in the implementation of a Unix shell, developed in C using low-level system calls. The shell basically allows the user to execute commands, display execution information and other functionalities. The implementation was done step by step, adding one feature at a time, creating a new file for everysingle feature added, meaning that the Question7.c file contains the code with all the implemented features.
 All constraints given in the project were respected
 - No use of printf
 - No use of system
